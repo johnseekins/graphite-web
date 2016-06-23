@@ -286,9 +286,9 @@ def _scan_table(t):
   thrift_cfg = t['thrift']
   cur_step = t['r'][0]
   final_step = t['step']
-  start_floor = int((t['start'] / 7200) * 7200)
+  start_floor = int(t['start'] / 7200) * 7200
   # row_stop in a scan is exclusive, so add an extra hour
-  end_floor = int((t['end'] / 7200) * 7200) + 7200
+  end_floor = int(t['end'] / 7200) * 7200 + 7200
   data_val = []
   # Defalut to 'avg'
   if 'max' in t['method']:
@@ -352,11 +352,11 @@ class HBaseReader():
     if startTime > endTime:
       log.exception("Invalid time interval: from time '%s' is after " +
                     "until time '%s'" % (startTime, endTime))
-      return
+      return None
     if startTime > now:  # from time in the future
       log.exception("Invalid time interval: from time '%s' is " +
                     "in the future!" % startTime)
-      return
+      return None
     if endTime is None or endTime > now:
       endTime = now
 
