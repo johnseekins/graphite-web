@@ -11,31 +11,19 @@ META_CF_NAME = "t:"
 COLUMN_NAME = "%s:NODE" % META_CF_NAME
 RETEN_NAME = "%s:AGG" % META_CF_NAME
 METHOD_NAME = "%s:AGG_METHOD" % META_CF_NAME
-TABLE_PREFIX = 'graphite'
 
 class HBaseFinder(object):
   __slots__ = ('store_table')
-  def __init__(self):
-    self.thrift_port = int(db_conf.get('HBASE_THRIFT_PORT', '9090'))
-    self.transport = db_conf.get('HBASE_TRANSPORT_TYPE', 'buffered')
-    self.protocol = db_conf.get('HBASE_PROTOCOL', 'binary')
-    self.thrift_host = db_conf.get('HBASE_THRIFT_HOST', 'localhost')
-    self.compat = db_conf.get('HBASE_COMPAT_LEVEL', '0.94')
-    self.thrift_config = {'thrift_host': self.thrift_host,
-                          'port': self.thrift_port,
-                          'table_prefix': self.table_prefix,
-                          'transport': self.transport,
-                          'compat': self.compat,
-                          'protocol': self.protocol}
 
   def find_nodes(self, query):
     client = happybase.Connection(host=HBASE_CONFIG['host'],
                                   port=HBASE_CONFIG['port'],
-                                  table_prefix=TABLE_PREFIX,
+                                  table_prefix='graphite',
                                   transport=HBASE_CONFIG['transport_type'],
                                   compat=HBASE_CONFIG['compat_level'],
                                   protocol=HBASE_CONFIG['protocol'])
     self.store_table = client.table('META')
+    log.err("Made connection to HBase")
     # break query into parts
     pattern_parts = self._cheaper_patterns(query.pattern.split("."))
     if pattern_parts[0] in ["*", "ROOT"]:

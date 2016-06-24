@@ -5,7 +5,6 @@ from graphite.carbonlink import CarbonLink
 from graphite.logger import log
 from django.conf import settings
 from graphite.settings import HBASE_CONFIG
-from graphite.finders.hbase import TABLE_PREFIX
 
 try:
   import whisper
@@ -318,7 +317,7 @@ def _scan_table(t):
   """
   client = happybase.Connection(
                host=HBASE_CONFIG['host'], port=HBASE_CONFIG['port'],
-               table_prefix=TABLE_PREFIX,
+               table_prefix='graphite',
                transport=HBASE_CONFIG['transport_type'],
                compat=HBASE_CONFIG['compat_level'],
                protocol=HBASE_CONFIG['protocol'])
