@@ -4,6 +4,8 @@ from graphite.intervals import Interval, IntervalSet
 from graphite.carbonlink import CarbonLink
 from graphite.logger import log
 from django.conf import settings
+from graphite.settings import HBASE_CONFIG
+from graphite.finders.hbase import TABLE_PREFIX
 
 try:
   import whisper
@@ -315,17 +317,18 @@ def _scan_table(t):
   data rate and aggregate those appropriately.
   """
   client = happybase.Connection(
-               host=thrift_cfg['thrift_host'],
-               port=thrift_cfg['port'],
-               table_prefix=thrift_cfg['table_prefix'],
-               transport=thrift_cfg['transport'],
-               protocol=thrift_cfg['protocol'])
+               host=HBASE_CONFIG['host'], port=HBASE_CONFIG['port'],
+               table_prefix=TABLE_PREFIX,
+               transport=HBASE_CONFIG['transport_type'],
+               compat=HBASE_CONFIG['compat_level'],
+               protocol=HBASE_CONFIG['protocol'])
   for row in client.table(t['name']).scan(row_start=start_key,
                                           row_stop=end_key):
     key, data = row
     data = [float(data[k]) for k in sorted(data.iterkeys())]
     rowlen = len(data)
     for pos in xrange(0, rowlen, step):
+      # Don't grab more from this row for this data point
       if pos + step >= rowlen:
         group = data[pos:]
       else:
@@ -334,12 +337,11 @@ def _scan_table(t):
   return (time_info, data_val)
 
 
-class HBaseReader():
-  __slots__ = ('metric', 'thriftconfig', 'retentions', 'method')
+class HBaseReader(object):
+  __slots__ = ('metric', 'retentions', 'method')
 
-  def __init__(self, metric, retentions, method, thrift_config):
+  def __init__(self, metric, retentions, method):
     self.metric = metric
-    self.thriftconfig = thrift_config
     self.retentions = retentions
     self.method = method
 
@@ -361,7 +363,6 @@ class HBaseReader():
       endTime = now
 
     default_table = {'metric': self.metric,
-                     'thrift': self.thriftconfig,
                      'method': self.method}
     table_config = self._table_config(default_table, startTime,
                                       endTime, now)

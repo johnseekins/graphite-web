@@ -90,6 +90,13 @@ RRD_CF = 'AVERAGE'
 STORAGE_FINDERS = (
     'graphite.finders.standard.StandardFinder',
 )
+HBASE_CONFIG = {
+    'host': 'localhost',
+    'port': 9090,
+    'transport_type': 'buffered',
+    'protocol': 'binary',
+    'compat_level': '0.94',
+}
 MIDDLEWARE_CLASSES=''
 
 #Authentication settings

@@ -1,41 +1,41 @@
 import happybase
-from configobj import ConfigObj
 import json
 from . import match_entries
 from graphite.node import BranchNode, LeafNode
 from django.conf import settings
 from graphite.logger import log
 from graphite.readers import HBaseReader
+from graphite.settings import HBASE_CONFIG
 
 META_CF_NAME = "t:"
 COLUMN_NAME = "%s:NODE" % META_CF_NAME
 RETEN_NAME = "%s:AGG" % META_CF_NAME
 METHOD_NAME = "%s:AGG_METHOD" % META_CF_NAME
+TABLE_PREFIX = 'graphite'
 
-
-class HBaseFinder:
-  __slots__ = ('thrift_port', 'table_prefix', 'transport', 'protocol',
-               'thrift_host', 'thrift_config', 'store_table')
+class HBaseFinder(object):
+  __slots__ = ('store_table')
   def __init__(self):
-    db_conf = ConfigObj('%s/graphite-db.conf' % settings.CONF_DIR)['HbaseDB']
-    self.thrift_port = int(db_conf['THRIFT_PORT'])
-    self.table_prefix = db_conf['GRAPHITE_PREFIX']
-    self.transport = db_conf['THRIFT_TRANSPORT_TYPE']
-    self.protocol = db_conf['THRIFT_PROTOCOL']
-    self.thrift_host = db_conf['THRIFT_HOST']
+    self.thrift_port = int(db_conf.get('HBASE_THRIFT_PORT', '9090'))
+    self.transport = db_conf.get('HBASE_TRANSPORT_TYPE', 'buffered')
+    self.protocol = db_conf.get('HBASE_PROTOCOL', 'binary')
+    self.thrift_host = db_conf.get('HBASE_THRIFT_HOST', 'localhost')
+    self.compat = db_conf.get('HBASE_COMPAT_LEVEL', '0.94')
     self.thrift_config = {'thrift_host': self.thrift_host,
                           'port': self.thrift_port,
                           'table_prefix': self.table_prefix,
                           'transport': self.transport,
+                          'compat': self.compat,
                           'protocol': self.protocol}
 
   def find_nodes(self, query):
-    client = happybase.Connection(host=self.thrift_host,
-                                  port=self.thrift_port,
-                                  table_prefix=self.table_prefix,
-                                  transport=self.transport,
-                                  protocol=self.protocol)
-    self.store_table = client.table('meta')
+    client = happybase.Connection(host=HBASE_CONFIG['host'],
+                                  port=HBASE_CONFIG['port'],
+                                  table_prefix=TABLE_PREFIX,
+                                  transport=HBASE_CONFIG['transport_type'],
+                                  compat=HBASE_CONFIG['compat_level'],
+                                  protocol=HBASE_CONFIG['protocol'])
+    self.store_table = client.table('META')
     # break query into parts
     pattern_parts = self._cheaper_patterns(query.pattern.split("."))
     if pattern_parts[0] in ["*", "ROOT"]:
@@ -53,9 +53,7 @@ class HBaseFinder:
         yield BranchNode(subnode)
       else:
         reten = [tuple(l) for l in json.loads(subnodes[RETEN_NAME])]
-        reader = HBaseReader(subnode, reten,
-                             subnodes[METHOD_NAME],
-                             self.thrift_config)
+        reader = HBaseReader(subnode, reten, subnodes[METHOD_NAME])
         yield LeafNode(subnode, reader)
 
   def _find_paths(self, currNodeRowKey, patterns):
@@ -142,7 +140,6 @@ class HBaseFinder:
 
   def _get_row(self, row):
     try:
-      res = self.store_table.row(row)
+      return self.store_table.row(row)
     except Exception:
-      res = None
-    return res
+      return None
