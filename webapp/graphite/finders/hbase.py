@@ -7,7 +7,7 @@ from graphite.logger import log
 from graphite.readers import HBaseReader
 from graphite.settings import HBASE_CONFIG
 
-META_CF_NAME = "t:"
+META_CF_NAME = "m"
 COLUMN_NAME = "%s:NODE" % META_CF_NAME
 RETEN_NAME = "%s:AGG" % META_CF_NAME
 METHOD_NAME = "%s:AGG_METHOD" % META_CF_NAME
