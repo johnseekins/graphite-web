@@ -277,14 +277,13 @@ class RRDReader:
 
 
 def _avg(data):
-  if len(data) > 0:
+  if isinstance(data, list) and len(data) > 0:
     return float(sum(data) / len(data))
   else:
     return float('nan')
 
 
 def _scan_table(t):
-  thrift_cfg = t['thrift']
   cur_step = t['r'][0]
   final_step = t['step']
   start_floor = int(t['start'] / 7200) * 7200
