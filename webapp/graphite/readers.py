@@ -286,29 +286,28 @@ def _avg(data):
 
 def _scan_table(t):
   cur_step = t['r'][0]
+  cur_start = t['start']
+  cur_end = t['end']
   final_step = t['step']
-  start_floor = int(t['start'] / 7200) * 7200
+  start_floor = int(cur_start / 7200) * 7200
   # row_stop in a scan is exclusive, so add an extra hour
-  end_floor = int(t['end'] / 7200) * 7200 + 7200
-  data_val = []
+  end_floor = int(cur_end / 7200) * 7200 + 7200
+  length = int((cur_end - cur_start) / cur_step)
+  data_val = [None] * length
   # Defalut to 'avg'
-  if 'max' in t['method']:
+  method = t['method']
+  if 'max' in method:
     method = max
-  elif 'min' in t['method']:
+  elif 'min' in method:
     method = min
-  elif 'sum' in t['method']:
+  elif 'sum' in method:
     method = sum
   else:
     method = _avg
 
-  if final_step < cur_step:
-    step = int(cur_step / final_step)
-  else:
-    step = int(final_step / cur_step)
-
   start_key = "%s:%d" % (t['metric'], start_floor)
   end_key = "%s:%d" % (t['metric'], end_floor)
-  time_info = (t['start'], t['end'], cur_step)
+  time_info = (cur_start, cur_end, cur_step)
   """
   Each row in the table has timestamps written at the smallest
   retention rate. So we'll need to take slices of each row at
@@ -324,15 +323,15 @@ def _scan_table(t):
   for row in client.table(t['name']).scan(row_start=start_key,
                                           row_stop=end_key):
     key, data = row
-    data = [float(data[k]) for k in sorted(data.iterkeys())]
-    rowlen = len(data)
-    for pos in xrange(0, rowlen, step):
-      # Don't grab more from this row for this data point
-      if pos + step >= rowlen:
-        group = data[pos:]
+    for ts, val in data.iteritems():
+      val = float(val)
+      group_ts = int(ts.split(":")[1])
+      slot = int(((group_ts - cur_start) / cur_step) % length)
+      if data_val[slot]:
+        points = [data_val[slot], val]
+        data_val[slot] = method(points)
       else:
-        group = data[pos:pos + step]
-      data_val.append(method(group))
+        data_val[slot] = val
   return time_info, data_val
 
 
