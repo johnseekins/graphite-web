@@ -361,7 +361,7 @@ class HBaseReader(object):
     if len(results) > 1:
         return reduce(self._merge, results)
     else:
-        return results
+        return results[0]
 
   def _merge(self, results1, results2):
     # Ensure results1 is finer than results2
