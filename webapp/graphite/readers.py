@@ -411,18 +411,20 @@ class HBaseReader(object):
       cur_end = now - offset
       offset += r_secs
       cur_start = now - offset
-      # Everything beyond now will be outside our timeframe
-      if cur_end < startTime:
-        break
-      # Basically, everything in this table is in the future
-      if cur_start > endTime:
+      # The table is completely outside our window
+      if cur_end < startTime or cur_start > endTime:
         continue
+
+      # build the table config
       cur_table = dict(default_table)
       cur_table['name'] = "%d.%s" % (r[0], reten_str)
       if r[0] < final_step:
         final_step = r[0]
       cur_table['r'] = r
-      cur_table['end'] = cur_end
+      if endTime < cur_end:
+        cur_table['end'] = endTime
+      else:
+        cur_table['end'] = cur_end
       if cur_start < startTime:
         cur_table['start'] = startTime
       else:
