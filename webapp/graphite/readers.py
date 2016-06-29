@@ -333,7 +333,7 @@ def _scan_table(t):
       else:
         group = data[pos:pos + step]
       data_val.append(method(group))
-  return (time_info, data_val)
+  return time_info, data_val
 
 
 class HBaseReader(object):
@@ -350,22 +350,10 @@ class HBaseReader(object):
     return IntervalSet([Interval(ret, time.time())])
 
   def fetch(self, startTime, endTime):
-    now = time.time()
-    if startTime > endTime:
-      log.exception("Invalid time interval: from time '%s' is after " +
-                    "until time '%s'" % (startTime, endTime))
-      return None
-    if startTime > now:  # from time in the future
-      log.exception("Invalid time interval: from time '%s' is " +
-                    "in the future!" % startTime)
-      return None
-    if endTime is None or endTime > now:
-      endTime = now
-
     default_table = {'metric': self.metric,
                      'method': self.method}
-    table_config = self._table_config(default_table, startTime,
-                                      endTime, now)
+    table_config = self._table_config(default_table, startTime, endTime)
+
     threads = Pool(len(table_config))
     results = threads.map(_scan_table, table_config)
     threads.close()
@@ -412,7 +400,8 @@ class HBaseReader(object):
         values.append(v1)
     return time_info, values
 
-  def _table_config(self, default_table, startTime, endTime, now):
+  def _table_config(self, default_table, startTime, endTime):
+    now = time.time()
     table_config = []
     offset = 0
     # Start with coarse retention

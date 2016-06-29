@@ -37,6 +37,8 @@ class HBaseFinder(object):
     or leaf nodes to the calling function.
     """
     for part, subnodes in self._find_paths(start_string, pattern_parts):
+      if not part or not subnodes:
+        yield None
       if COLUMN_NAME not in subnodes.keys():
         this_node = subnodes[part]
         row = self.store_table.row(this_node)
