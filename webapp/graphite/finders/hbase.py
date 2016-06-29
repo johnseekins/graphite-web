@@ -23,7 +23,7 @@ class HBaseFinder(object):
                                   compat=HBASE_CONFIG['compat_level'],
                                   protocol=HBASE_CONFIG['protocol'])
     self.store_table = client.table('META')
-    log.err("Made connection to HBase")
+    log.info("Made connection to HBase")
     # break query into parts
     pattern_parts = self._cheaper_patterns(query.pattern.split("."))
     if pattern_parts[0] in ["*", "ROOT"]:
@@ -36,13 +36,19 @@ class HBaseFinder(object):
     should only be processing whether we return branch
     or leaf nodes to the calling function.
     """
-    for subnode, subnodes in self._find_paths(start_string, pattern_parts):
-      if not bool(subnodes.get(COLUMN_NAME, False)):
-        yield BranchNode(subnode)
+    for part, subnodes in self._find_paths(start_string, pattern_parts):
+      if COLUMN_NAME not in subnodes.keys():
+        this_node = subnodes[part]
+        row = self.store_table.row(this_node)
       else:
-        reten = [tuple(l) for l in json.loads(subnodes[RETEN_NAME])]
-        reader = HBaseReader(subnode, reten, subnodes[METHOD_NAME])
-        yield LeafNode(subnode, reader)
+        this_node = part
+        row = dict(subnodes)
+      if not bool(row.get(COLUMN_NAME, False)):
+        yield BranchNode(part)
+      else:
+        reten = [tuple(l) for l in json.loads(row[RETEN_NAME])]
+        reader = HBaseReader(this_node, reten, row[METHOD_NAME])
+        yield LeafNode(this_node, reader)
 
   def _find_paths(self, currNodeRowKey, patterns):
     """

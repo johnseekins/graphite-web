@@ -5,6 +5,7 @@ from graphite.carbonlink import CarbonLink
 from graphite.logger import log
 from django.conf import settings
 from graphite.settings import HBASE_CONFIG
+from multiprocessing import Pool
 
 try:
   import whisper
@@ -345,10 +346,11 @@ class HBaseReader(object):
 
   def get_intervals(self):
     # We can only go back as far as the oldest retention
-    ret = sum([r[0] * r[1] for r in self.retentions])
-    return [ (int(ret), int(time())) ]
+    ret = int(sum([r[0] * r[1] for r in self.retentions]))
+    return IntervalSet([Interval(ret, time.time())])
 
-  def fetch(self, startTime, endTime, now):
+  def fetch(self, startTime, endTime):
+    now = time.time()
     if startTime > endTime:
       log.exception("Invalid time interval: from time '%s' is after " +
                     "until time '%s'" % (startTime, endTime))
@@ -383,22 +385,25 @@ class HBaseReader(object):
     time_info2, values2 = results2
     start1, end1, step1 = time_info1
     start2, end2, step2 = time_info2
-    step = step1                # finest step
-    start = min(start1, start2)  # earliest start
-    end = max(end1, end2)      # latest end
+    # finest step
+    step = int(min(step1, step2))
+    # earliest start
+    start = int(min(start1, start2))
+    # latest end
+    end = int(max(end1, end2))
     time_info = (start, end, step)
     values = []
 
     for t in xrange(start, end, step):
       # Look for the finer precision value first if available
-      i1 = (t - start1) / step1
-      if len(values1) > i1:
+      i1 = int((t - start1) / step1)
+      if len(values1) > i1 > 0:
         v1 = values1[i1]
       else:
         v1 = None
       if v1 is None:
-        i2 = (t - start2) / step2
-        if len(values2) > i2:
+        i2 = int((t - start2) / step2)
+        if len(values2) > i2 > 0:
           v2 = values2[i2]
         else:
           v2 = None
