@@ -358,6 +358,7 @@ class HBaseReader(object):
     results = threads.map(_scan_table, table_config)
     threads.close()
     threads.join()
+
     # No reason to call a function if we don't have to
     if len(results) > 1:
         return reduce(self._merge, results)
@@ -381,7 +382,6 @@ class HBaseReader(object):
     end = int(max(end1, end2))
     time_info = (start, end, step)
     values = []
-
     for t in xrange(start, end, step):
       # Look for the finer precision value first if available
       i1 = int((t - start1) / step1)
