@@ -288,7 +288,6 @@ def _scan_table(t):
   cur_step = t['r'][0]
   cur_start = t['start']
   cur_end = t['end']
-  final_step = t['step']
   start_floor = int(cur_start / 7200) * 7200
   # row_stop in a scan is exclusive, so add an extra hour
   end_floor = int(cur_end / 7200) * 7200 + 7200
@@ -308,22 +307,24 @@ def _scan_table(t):
   start_key = "%s:%d" % (t['metric'], start_floor)
   end_key = "%s:%d" % (t['metric'], end_floor)
   time_info = (cur_start, cur_end, cur_step)
+
   """
   Each row in the table has timestamps written at the smallest
-  retention rate. So we'll need to take slices of each row at
-  the difference between the current data rate and our "final"
-  data rate and aggregate those appropriately.
+  retention rate. So we "slot" the data into the step-"floored"
+  timestamp and roll it up as we go.
   """
-  client = happybase.Connection(
-               host=HBASE_CONFIG['host'], port=HBASE_CONFIG['port'],
-               table_prefix='graphite',
-               transport=HBASE_CONFIG['transport_type'],
-               compat=HBASE_CONFIG['compat_level'],
-               protocol=HBASE_CONFIG['protocol'])
+  client = happybase.Connection(host=HBASE_CONFIG['host'],
+                                port=HBASE_CONFIG['port'],
+                                table_prefix='graphite',
+                                transport=HBASE_CONFIG['transport_type'],
+                                compat=HBASE_CONFIG['compat_level'],
+                                protocol=HBASE_CONFIG['protocol'])
+
   for row in client.table(t['name']).scan(row_start=start_key,
                                           row_stop=end_key):
     key, data = row
     for ts, val in data.iteritems():
+      # data is serialized on the way back, so we'll need to format
       val = float(val)
       group_ts = int(ts.split(":")[1])
       slot = int(((group_ts - cur_start) / cur_step) % length)
@@ -403,8 +404,6 @@ class HBaseReader(object):
     now = time.time()
     table_config = []
     offset = 0
-    # Start with coarse retention
-    final_step = self.retentions[-1][0]
     reten_str = ".".join("%s_%s" % tup for tup in self.retentions)
     for r in self.retentions:
       r_secs = int(int(r[0]) * int(r[1]))
@@ -418,8 +417,6 @@ class HBaseReader(object):
       # build the table config
       cur_table = dict(default_table)
       cur_table['name'] = "%d.%s" % (r[0], reten_str)
-      if r[0] < final_step:
-        final_step = r[0]
       cur_table['r'] = r
       if endTime < cur_end:
         cur_table['end'] = endTime
@@ -430,7 +427,4 @@ class HBaseReader(object):
       else:
         cur_table['start'] = cur_start
       table_config.append(cur_table)
-    # Add the step we'll shooting for to each table
-    for l in table_config:
-      l['step'] = final_step
     return table_config
