@@ -28,7 +28,7 @@ class HBaseFinder(object):
     if pattern_parts[0] in ["*", "ROOT"]:
       start_string = "ROOT"
     else:
-      start_string = "%s" % pattern_parts[0]
+      start_string = str(pattern_parts[0])
     pattern_parts = pattern_parts[1:]
     """
     The actual gets occur in _find_paths, so this for loop
@@ -36,35 +36,34 @@ class HBaseFinder(object):
     or leaf nodes to the calling function.
     """
     for node, subnodes in self._find_paths(start_string, pattern_parts):
-      if COLUMN_NAME not in subnodes.keys():
+      if not subnodes:
+        continue
+      if not bool(subnodes.get(COLUMN_NAME, False)):
         this_node = subnodes[node]
         row = self._get_row(this_node)
       else:
         this_node = node
         row = dict(subnodes)
-      if row:
-        if not bool(row.get(COLUMN_NAME, False)):
-          yield BranchNode(node)
-        else:
-          reten = [tuple(l) for l in json.loads(row[RETEN_NAME])]
-          reader = HBaseReader(this_node, reten, row[METHOD_NAME])
-          yield LeafNode(this_node, reader)
+      if not bool(row.get(COLUMN_NAME, False)):
+        yield BranchNode(this_node)
       else:
-        yield None
+        reten = [tuple(l) for l in json.loads(row[RETEN_NAME])]
+        reader = HBaseReader(this_node, reten, row[METHOD_NAME])
+        yield LeafNode(this_node, reader)
 
-  def _find_paths(self, currNodeRowKey, patterns):
+  def _find_paths(self, row_key, patterns):
     """
     Recursively generates components
     underneath current_node
     matching the corresponding pattern in patterns
     """
-    node_row = self._get_row(currNodeRowKey)
-    if not node_row or len(node_row) < 1:
+    node_row = self._get_row(row_key)
+    if not node_row:
       yield "", {}
     if bool(node_row.get(COLUMN_NAME, False)):
-      yield currNodeRowKey, {COLUMN_NAME: node_row[COLUMN_NAME],
-                             RETEN_NAME: node_row[RETEN_NAME],
-                             METHOD_NAME: node_row[METHOD_NAME]}
+      yield row_key, {COLUMN_NAME: node_row[COLUMN_NAME],
+                      RETEN_NAME: node_row[RETEN_NAME],
+                      METHOD_NAME: node_row[METHOD_NAME]}
 
     if patterns:
       pattern = patterns[0]
@@ -137,4 +136,4 @@ class HBaseFinder(object):
     try:
       return self.store_table.row(row)
     except Exception:
-      return None
+      return {}
