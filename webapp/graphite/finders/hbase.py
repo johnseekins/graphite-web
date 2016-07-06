@@ -2,7 +2,6 @@ import happybase
 import json
 from . import match_entries
 from graphite.node import BranchNode, LeafNode
-from django.conf import settings
 from graphite.logger import log
 from graphite.readers import HBaseReader
 from graphite.settings import HBASE_CONFIG
@@ -36,21 +35,22 @@ class HBaseFinder(object):
     should only be processing whether we return branch
     or leaf nodes to the calling function.
     """
-    for part, subnodes in self._find_paths(start_string, pattern_parts):
-      if not part or not subnodes:
-        yield None
+    for node, subnodes in self._find_paths(start_string, pattern_parts):
       if COLUMN_NAME not in subnodes.keys():
-        this_node = subnodes[part]
-        row = self.store_table.row(this_node)
+        this_node = subnodes[node]
+        row = self._get_row(this_node)
       else:
-        this_node = part
+        this_node = node
         row = dict(subnodes)
-      if not bool(row.get(COLUMN_NAME, False)):
-        yield BranchNode(part)
+      if row:
+        if not bool(row.get(COLUMN_NAME, False)):
+          yield BranchNode(node)
+        else:
+          reten = [tuple(l) for l in json.loads(row[RETEN_NAME])]
+          reader = HBaseReader(this_node, reten, row[METHOD_NAME])
+          yield LeafNode(this_node, reader)
       else:
-        reten = [tuple(l) for l in json.loads(row[RETEN_NAME])]
-        reader = HBaseReader(this_node, reten, row[METHOD_NAME])
-        yield LeafNode(this_node, reader)
+        yield None
 
   def _find_paths(self, currNodeRowKey, patterns):
     """
@@ -58,13 +58,13 @@ class HBaseFinder(object):
     underneath current_node
     matching the corresponding pattern in patterns
     """
-    nodeRow = self._get_row(currNodeRowKey)
-    if not nodeRow or len(nodeRow) < 1:
+    node_row = self._get_row(currNodeRowKey)
+    if not node_row or len(node_row) < 1:
       yield "", {}
-    if bool(nodeRow.get(COLUMN_NAME, False)):
-      yield currNodeRowKey, {COLUMN_NAME: nodeRow[COLUMN_NAME],
-                             RETEN_NAME: nodeRow[RETEN_NAME],
-                             METHOD_NAME: nodeRow[METHOD_NAME]}
+    if bool(node_row.get(COLUMN_NAME, False)):
+      yield currNodeRowKey, {COLUMN_NAME: node_row[COLUMN_NAME],
+                             RETEN_NAME: node_row[RETEN_NAME],
+                             METHOD_NAME: node_row[METHOD_NAME]}
 
     if patterns:
       pattern = patterns[0]
@@ -73,9 +73,9 @@ class HBaseFinder(object):
       pattern = "*"
 
     subnodes = {}
-    for k, v in nodeRow.items():
-      search_pattern = "%s:c_" % META_CF_NAME
-      len_search = len(search_pattern)
+    search_pattern = "%s:c_" % META_CF_NAME
+    len_search = len(search_pattern)
+    for k, v in node_row.items():
       # branches start with c_
       if k.startswith(search_pattern):
         # pop off <meta_name>:c_ prefix
@@ -86,19 +86,18 @@ class HBaseFinder(object):
     # we still have more directories to traverse
     if patterns:
       for subnode in matching_subnodes:
-        rowKey = subnodes[subnode]
-        subNodeContents = self._get_row(rowKey)
-        if not subNodeContents:
+        row_key = subnodes[subnode]
+        subnode_contents = self._get_row(row_key)
+        if not subnode_contents:
           continue
         """
-        leaves have a cf:NODE column describing their data
+        leaves have a m:NODE column describing their data
         we can't possibly match on a leaf here because we
         have more components in the pattern,
         so only recurse on branches
         """
-        search_pattern = "%s:NODE" % META_CF_NAME
-        if search_pattern not in subNodeContents.keys():
-          for metric, node_list in self._find_paths(rowKey, patterns):
+        if "%s:NODE" % META_CF_NAME not in subnode_contents.keys():
+          for metric, node_list in self._find_paths(row_key, patterns):
             yield metric, node_list
     else:
       for subnode in matching_subnodes:
