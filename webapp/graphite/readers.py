@@ -278,14 +278,23 @@ class RRDReader:
 
 
 def _avg(data):
-  if isinstance(data, list) and len(data) > 0:
-    return float(sum(data) / len(data))
+  length = len(data)
+  if length > 0:
+    return float(sum(data) / length)
+  else:
+    return float('nan')
+
+def _avg_zero(data):
+  length = len(data)
+  if length > 0:
+    data = [x or 0 for x in data]
+    return float(sum(data) / length)
   else:
     return float('nan')
 
 
 def _last(data):
-  if isinstance(data, list) and len(data) > 0:
+  if len(data) > 0:
     return float(data[-1])
   else:
     return float('nan')
@@ -310,6 +319,8 @@ def _scan_table(t):
     method = sum
   elif 'last' in method:
     method = _last
+  elif 'avg_zero' in method:
+    method = _avg_zero
   else:
     method = _avg
 
