@@ -284,6 +284,13 @@ def _avg(data):
     return float('nan')
 
 
+def _last(data):
+  if isinstance(data, list) and len(data) > 0:
+    return float(data[-1])
+  else:
+    return float('nan')
+
+
 def _scan_table(t):
   cur_step = t['r'][0]
   cur_start = t['start']
@@ -301,6 +308,8 @@ def _scan_table(t):
     method = min
   elif 'sum' in method:
     method = sum
+  elif 'last' in method:
+    method = _last
   else:
     method = _avg
 
