@@ -11,6 +11,7 @@ COLUMN_NAME = "%s:NODE" % META_CF_NAME
 RETEN_NAME = "%s:AGG" % META_CF_NAME
 METHOD_NAME = "%s:AGG_METHOD" % META_CF_NAME
 
+
 class HBaseFinder(object):
   __slots__ = ('store_table')
 

@@ -299,14 +299,16 @@ def _last(data):
   else:
     return float('nan')
 
+ROW_SIZE = 7200
+
 
 def _scan_table(t):
   cur_step = t['r'][0]
   cur_start = t['start']
   cur_end = t['end']
-  start_floor = int(cur_start / 7200) * 7200
+  start_floor = int(cur_start / ROW_SIZE) * ROW_SIZE
   # row_stop in a scan is exclusive, so add an extra hour
-  end_floor = int(cur_end / 7200) * 7200 + 7200
+  end_floor = int(cur_end / ROW_SIZE) * ROW_SIZE + ROW_SIZE
   length = int((cur_end - cur_start) / cur_step)
   data_val = [None] * length
   # Defalut to 'avg'
