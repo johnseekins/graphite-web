@@ -1,11 +1,11 @@
 Installing From Pip
 ===================
 
-Versioned Graphite releases can be installed via `pip <http://pypi.python.org/pypi/pip>`_. When installing with pip, Installation of dependencies will automatically be attempted.
+Versioned Graphite releases can be installed via `pip <http://pypi.python.org/pypi/pip>`_. When installing with pip, installation of Python package dependencies will automatically be attempted.
 
 .. note::
 
-  In order to install carbon, you must install the Python Development Headers.  In Debian-based distributions, this will require ``apt-get install python-dev``, and in Red Hat-based distributions you will run ``yum install python-devel``.
+  In order to install Graphite-Web and Carbon, you must first install some development headers.  In Debian-based distributions, this will require ``apt-get install python-dev libcairo2-dev libffi-dev``, and in Red Hat-based distributions you will run ``yum install python-devel cairo-devel libffi-devel``.
 
 Installing in the Default Location
 ----------------------------------
@@ -14,10 +14,10 @@ simply execute as root:
 
 .. code-block:: none
 
-    pip install https://github.com/graphite-project/ceres/tarball/master
-    pip install whisper
-    pip install carbon
-    pip install graphite-web
+    export PYTHONPATH="/opt/graphite/lib/:/opt/graphite/webapp/"
+    pip install https://github.com/graphite-project/whisper/tarball/master
+    pip install https://github.com/graphite-project/carbon/tarball/master
+    pip install https://github.com/graphite-project/graphite-web/tarball/master
 
 .. note::
 
@@ -62,4 +62,12 @@ To install the Graphite-web code into the system-wide site-packages directory wi
 .. code-block:: none
 
    pip install graphite-web --install-option="--install-scripts=/usr/bin" --install-option="--install-lib=/usr/lib/python2.6/site-packages" --install-option="--install-data=/var/lib/graphite"
+
+Installing Ceres
+----------------
+Ceres is an alternative storage backend that some choose to use in place of the default Whisper backend.
+
+.. code-block:: none
+
+    pip install https://github.com/graphite-project/ceres/tarball/master
 

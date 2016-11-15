@@ -60,6 +60,9 @@ Collection
 `Sensu`_
   A monitoring framework that can route metrics to Graphite. Servers subscribe to sets of checks, so getting metrics from a new server to Graphite is as simple as installing the Sensu client and subscribing.
 
+`snort2graphite`_
+  Snort IDS/IPS can be configured to generate a rich set of metrics about network traffic. Presently there are more than 130 metrics available. Snort2graphite will pick up the most recent data from your snort.stats file and send all the metrics into Graphite. 
+
 `SqlToGraphite`_
   An agent for windows written in .net to collect metrics using plugins (WMI, SQL Server, Oracle) by polling an endpoint with a SQL query and pushing the results into graphite. It uses either a local or a centralised configuration over HTTP.
 
@@ -113,6 +116,9 @@ Forwarding
 
 `pipe-to-graphite`_
   A small shell script that makes it easy to report the output of any other cli program to Graphite.
+
+`Polymur`_
+  A fast relay and HTTPS forwarder toolset written in Go.
 
 `statsd`_
   A simple daemon for easy stats aggregation, developed by the folks at Etsy. A list of forks and alternative implementations can be found at <http://joemiller.me/2011/09/21/list-of-statsd-server-implementations/>
@@ -213,6 +219,9 @@ Monitoring
 `graphite-to-zabbix`_
   A tool to make zabbix alerts based on Graphite data.
 
+`Icinga`_
+  Icinga 2 will directly write metrics to the defined Graphite Carbon daemon tcp socket if the graphite feature is enabled. This feature is a more simple integration compared to Icinga 1.x and Graphios.
+
 `Moira`_
   An alerting system based on Graphite data. Moira is a real-time alerting tool, independent from graphite storage, custom expressions and extendable notification channels.
 
@@ -292,7 +301,7 @@ Other
 .. _Cyanite: http://cyanite.io/
 .. _D3.js: http://mbostock.github.com/d3
 .. _Descartes: https://github.com/obfuscurity/descartes
-.. _Diamond: http://opensource.brightcove.com/project/Diamond
+.. _Diamond: https://diamond.readthedocs.io/en/latest/
 .. _Dusk: https://github.com/obfuscurity/dusk
 .. _Esper: http://esper.codehaus.org
 .. _Evenflow: https://github.com/github/evenflow
@@ -326,6 +335,7 @@ Other
 .. _Hubot: https://github.com/github/hubot
 .. _hubot-scripts: https://github.com/github/hubot-scripts
 .. _InfluxDB: https://influxdb.com/
+.. _Icinga: http://docs.icinga.org/icinga2/latest/doc/module/icinga2/chapter/icinga2-features#graphite-carbon-cache-writer
 .. _jmx2graphite: https://github.com/logzio/jmx2graphite
 .. _jmxtrans: https://github.com/jmxtrans/jmxtrans
 .. _KairosDB: http://kairosdb.github.io/
@@ -339,6 +349,7 @@ Other
 .. _New Relic: https://newrelic.com/platform
 .. _Pencil: https://github.com/fetep/pencil
 .. _pipe-to-graphite: https://github.com/iFixit/pipe-to-graphite
+.. _Polymur: https://github.com/jamiealquiza/polymur
 .. _RabbitMQ: http://www.rabbitmq.com
 .. _rearview: http://github.com/livingsocial/rearview
 .. _Rickshaw: http://code.shutterstock.com/rickshaw
@@ -347,6 +358,7 @@ Other
 .. _Sensu: http://sensuapp.org
 .. _Seyren: https://github.com/scobal/seyren
 .. _Shinken: http://www.shinken-monitoring.org
+.. _snort2graphite: https://github.com/gregvolk/snort2graphite
 .. _SqlToGraphite: https://github.com/perryofpeek/SqlToGraphite
 .. _SSC Serv: https://ssc-serv.com
 .. _statsd: https://github.com/etsy/statsd

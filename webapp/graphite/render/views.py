@@ -55,6 +55,7 @@ def renderView(request):
     'endTime' : requestOptions['endTime'],
     'localOnly' : requestOptions['localOnly'],
     'template' : requestOptions['template'],
+    'tzinfo' : requestOptions['tzinfo'],
     'data' : []
   }
   data = requestContext['data']
@@ -154,6 +155,15 @@ def renderView(request):
             timestamps = range(int(series.start), int(series.end) + 1, int(series.step))
           datapoints = zip(series, timestamps)
           series_data.append(dict(target=series.name, datapoints=datapoints))
+      elif 'noNullPoints' in requestOptions and any(data):
+        for series in data:
+          values = []
+          for (index,v) in enumerate(series):
+            if v is not None:
+              timestamp = series.start + (index * series.step)
+              values.append((v,timestamp))
+          if len(values) > 0:
+            series_data.append(dict(target=series.name, datapoints=values))
       else:
         for series in data:
           timestamps = range(int(series.start), int(series.end) + 1, int(series.step))
@@ -173,13 +183,58 @@ def renderView(request):
         patch_response_headers(response, cache_timeout=cacheTimeout)
       else:
         add_never_cache_headers(response)
+      log.rendering('Total json rendering time %.6f' % (time() - start))
+      return response
+
+    if format == 'dygraph':
+      labels = ['Time']
+      result = '{}'
+      if data:
+        datapoints = [[ts] for ts in range(data[0].start, data[0].end, data[0].step)]
+        for series in data:
+          labels.append(series.name)
+          for i, point in enumerate(series):
+            datapoints[i].append(point if point is not None else 'null')
+        line_template = '[%%s000%s]' % ''.join([', %s'] * len(data))
+        lines = [line_template % tuple(points) for points in datapoints]
+        result = '{"labels" : %s, "data" : [%s]}' % (json.dumps(labels), ', '.join(lines))
+      response = HttpResponse(content=result, content_type='application/json')
+
+      if useCache:
+        cache.add(requestKey, response, cacheTimeout)
+        patch_response_headers(response, cache_timeout=cacheTimeout)
+      else:
+        add_never_cache_headers(response)
+      log.rendering('Total dygraph rendering time %.6f' % (time() - start))
+      return response
+
+    if format == 'rickshaw':
+      series_data = []
+      for series in data:
+        timestamps = range(series.start, series.end, series.step)
+        datapoints = [{'x' : x, 'y' : y} for x, y in zip(timestamps, series)]
+        series_data.append( dict(target=series.name, datapoints=datapoints) )
+      if 'jsonp' in requestOptions:
+        response = HttpResponse(
+          content="%s(%s)" % (requestOptions['jsonp'], json.dumps(series_data)),
+          mimetype='text/javascript')
+      else:
+        response = HttpResponse(content=json.dumps(series_data),
+                                content_type='application/json')
+
+      if useCache:
+        cache.add(requestKey, response, cacheTimeout)
+        patch_response_headers(response, cache_timeout=cacheTimeout)
+      else:
+        add_never_cache_headers(response)
+      log.rendering('Total rickshaw rendering time %.6f' % (time() - start))
       return response
 
     if format == 'raw':
       response = HttpResponse(content_type='text/plain')
       for series in data:
         response.write( "%s,%d,%d,%d|" % (series.name, series.start, series.end, series.step) )
-        response.write( ','.join(map(str,series)) )
+        response.write( ','.join(map(repr,series)) )
         response.write('\n')
 
       log.rendering('Total rawData rendering time %.6f' % (time() - start))
@@ -242,7 +297,7 @@ def parseOptions(request):
   requestOptions['graphType'] = graphType
   requestOptions['graphClass'] = graphClass
   requestOptions['pieMode'] = queryParams.get('pieMode', 'average')
-  requestOptions['cacheTimeout'] = int( queryParams.get('cacheTimeout', settings.DEFAULT_CACHE_DURATION) )
+  cacheTimeout = int( queryParams.get('cacheTimeout', settings.DEFAULT_CACHE_DURATION) )
   requestOptions['targets'] = []
 
   # Extract the targets out of the queryParams
@@ -277,6 +332,8 @@ def parseOptions(request):
     requestOptions['noCache'] = True
   if 'maxDataPoints' in queryParams and queryParams['maxDataPoints'].isdigit():
     requestOptions['maxDataPoints'] = int(queryParams['maxDataPoints'])
+  if 'noNullPoints' in queryParams:
+    requestOptions['noNullPoints'] = True
 
   requestOptions['localOnly'] = queryParams.get('local') == '1'
 
@@ -322,7 +379,12 @@ def parseOptions(request):
     timeRange = endTime - startTime
     queryTime = timeRange.days * 86400 + timeRange.seconds # convert the time delta to seconds
     if settings.DEFAULT_CACHE_POLICY and not queryParams.get('cacheTimeout'):
-      requestOptions['cacheTimeout'] = max(timeout for period,timeout in settings.DEFAULT_CACHE_POLICY if period <= queryTime)
+      timeouts = [timeout for period,timeout in settings.DEFAULT_CACHE_POLICY if period <= queryTime]
+      cacheTimeout = max(timeouts or (0,))
+
+  if cacheTimeout == 0:
+    requestOptions['noCache'] = True
+  requestOptions['cacheTimeout'] = cacheTimeout
 
   return (graphOptions, requestOptions)
 
@@ -356,7 +418,10 @@ def delegateRendering(graphType, graphOptions):
         connection.timeout = settings.REMOTE_RENDER_CONNECT_TIMEOUT
         connection.request('POST', '/render/local/', postData)
       # Read the response
-      response = connection.getresponse()
+      try: # Python 2.7+, use buffering of HTTP responses
+        response = connection.getresponse(buffering=True)
+      except TypeError:  # Python 2.6 and older
+        response = connection.getresponse()
       assert response.status == 200, "Bad response code %d from %s" % (response.status,server)
       contentType = response.getheader('Content-Type')
       imageData = response.read()

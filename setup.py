@@ -69,8 +69,8 @@ examples = [ ('examples', glob('examples/example-*')) ]
 try:
     setup(
       name='graphite-web',
-      version='0.10.0-alpha',
-      url='http://graphite.readthedocs.io',
+      version='0.10.0-rc1',
+      url='http://graphiteapp.org/',
       author='Chris Davis',
       author_email='chrismd@gmail.com',
       license='Apache Software License 2.0',
@@ -94,6 +94,7 @@ try:
         ['templates/*', 'local_settings.py.example']},
       scripts=glob('bin/*'),
       data_files=webapp_content.items() + storage_dirs + conf_files + examples,
+      install_requires=['Django==1.9', 'django-tagging==0.4.3', 'pytz', 'pyparsing==1.5.7', 'cairocffi'],
       classifiers=[
           'Intended Audience :: Developers',
           'Natural Language :: English',

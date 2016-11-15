@@ -1084,10 +1084,12 @@ function createFunctionsMenu() {
         {text: 'ScaleToSeconds', handler: applyFuncToEachWithInput('scaleToSeconds', 'Please enter a number of seconds to scale to')},
         {text: 'Offset', handler: applyFuncToEachWithInput('offset', 'Please enter the value to offset Y-values by')},
         {text: 'OffsetToZero', handler: applyFuncToEach('offsetToZero')},
+        {text: 'Interpolate', handler: applyFuncToEach('interpolate')},
         {text: 'Derivative', handler: applyFuncToEach('derivative')},
         {text: 'Power', handler: applyFuncToEachWithInput('pow', 'Please enter a power factor')},
         {text: 'Square Root', handler: applyFuncToEach('squareRoot')},
         {text: 'Time-adjusted Derivative', handler: applyFuncToEachWithInput('perSecond', "Please enter a maximum value if this metric is a wrapping counter (or just leave this blank)", {allowBlank: true})},
+	{text: 'Delay', handler: applyFuncToEachWithInput('delay', 'Please enter the number of steps to delay')},
         {text: 'Integral', handler: applyFuncToEach('integral')},
 	{text: 'Integral by Interval', handler: applyFuncToEachWithInput('integralByInterval', 'Integral this metric with a reset every ___ (examples: 1d, 1h, 10min)', {quote: true})},
         {text: 'Percentile Values', handler: applyFuncToEachWithInput('percentileOfSeries', "Please enter the percentile to use")},
@@ -1211,7 +1213,7 @@ function toggleAutoRefresh(button, pressed) {
     Composer.updateImage();
 
     //var interval = Math.min.apply(null, [context['interval'] for each (context in MetricContexts)] || [0]) || 60;
-    var interval = 60;
+    var interval = GraphiteConfig.refreshInterval;
     button.timer = setTimeout(doRefresh, interval * 1000)
   }
 
@@ -1371,7 +1373,8 @@ function createOptionsMenu() {
             menuRadioItem("legend", "Hide If Too Many", "hideLegend"),
             menuRadioItem("legend", "Always Hide", "hideLegend", "true"),
             menuRadioItem("legend", "Never Hide", "hideLegend", "false"),
-            menuCheckItem("Hide Duplicate Items", "uniqueLegend")
+            menuCheckItem("Hide Duplicate Items", "uniqueLegend"),
+            menuCheckItem("Hide Null Series", "hideNullFromLegend")
           ]
         }
       },

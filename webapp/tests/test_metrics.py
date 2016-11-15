@@ -17,7 +17,7 @@ class MetricsTester(TestCase):
     db = os.path.join(settings.WHISPER_DIR, 'test.wsp')
     hostcpu = os.path.join(settings.WHISPER_DIR, 'hosts/hostname/cpu.wsp')
 
-    settings.CLUSTER_SERVERS = ['127.0.0.1', '127.1.1.1']
+    settings.CLUSTER_SERVERS = ['127.1.1.1', '127.1.1.2']
 
     def wipe_whisper(self):
         try:
@@ -63,14 +63,14 @@ class MetricsTester(TestCase):
         self.assertEqual(data[0], 'hosts.worker1.cpu')
         self.assertEqual(data[1], 'hosts.worker2.cpu')
 
-# This currently fails because there's no error checking on the urlopen()
-#        # cluster
-#        request = {'cluster': 1}
-#        response = self.client.post(url, request)
-#        self.assertEqual(response.status_code, 200)
-#        data = json.loads(response.content)
-#        self.assertEqual(data[0], 'hosts.worker1.cpu')
-#        self.assertEqual(data[1], 'hosts.worker2.cpu')
+        # XXX Disabling this test for now since a local running
+        # Graphite webapp will always return a 200, breaking our test
+        ## cluster failure
+        #request = {'cluster': 1}
+        #response = self.client.post(url, request)
+        #self.assertEqual(response.status_code, 500)
+        #data = json.loads(response.content)
+        #self.assertEqual(data, [])
 
         # jsonp
         request = {'jsonp': 'callback'}
@@ -252,6 +252,39 @@ class MetricsTester(TestCase):
         content = test_find_view_basics(request)
         data = json.loads(content.split("(")[1].strip(")"))
         self.assertEqual(data['metrics'], [])
+
+        #
+        # format=nodelist
+        #
+        request=copy.deepcopy(request_default)
+        request['format']='nodelist'
+        request['query']='*'
+        content = test_find_view_basics(request)
+        data = json.loads(content)
+        self.assertEqual(data, {u'nodes': [u'hosts']})
+
+        request=copy.deepcopy(request_default)
+        request['format']='nodelist'
+        request['query']='*.*'
+        content = test_find_view_basics(request)
+        data = json.loads(content)
+        self.assertEqual(data, {u'nodes': [u'worker1', u'worker2']})
+
+        request=copy.deepcopy(request_default)
+        request['format']='nodelist'
+        request['query']='*.*.*'
+        content = test_find_view_basics(request)
+        data = json.loads(content)
+        self.assertEqual(data, {u'nodes': [u'cpu']})
+
+        # override node position
+        request=copy.deepcopy(request_default)
+        request['format']='nodelist'
+        request['query']='*.*.*'
+        request['position']='0'
+        content = test_find_view_basics(request)
+        data = json.loads(content)
+        self.assertEqual(data, {u'nodes': [u'hosts']})
 
 
     def test_expand_view(self):

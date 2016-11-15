@@ -14,9 +14,9 @@ limitations under the License."""
 
 import math, itertools, re
 try:
-    import cairo
-except ImportError:
     import cairocffi as cairo
+except ImportError:
+    import cairo
 
 import StringIO
 from datetime import datetime, timedelta
@@ -25,7 +25,6 @@ from ConfigParser import SafeConfigParser
 from django.conf import settings
 from graphite.render.datalib import TimeSeries
 from graphite.util import json
-
 
 import pytz
 
@@ -69,7 +68,7 @@ defaultGraphOptions = dict(
   fontitalic='false',
 )
 
-#X-axis configurations (copied from rrdtool, this technique is evil & ugly but effective)
+# X-axis configurations (copied from rrdtool, this technique is evil & ugly but effective)
 SEC = 1
 MIN = 60
 HOUR = MIN * 60
@@ -80,12 +79,17 @@ YEAR = DAY * 365
 
 # Set a flag to indicate whether the '%l' option can be used safely.
 # On Windows, in particular the %l option in strftime is not supported.
-#(It is not one of the documented Python formatters).
+# '%l' can also fail silently in Linux.
+# (It is not one of the documented Python formatters).
 try:
-    datetime.now().strftime("%a %l%p")
-    percent_l_supported = True
+    if datetime.now().strftime("%a %l%p"):
+        percent_l_supported = True
+    else:
+        percent_l_supported = False
 except ValueError as e:
     percent_l_supported = False
+
+DATE_FORMAT = settings.DATE_FORMAT
 
 xAxisConfigs = (
   dict(seconds=0.00,  minorGridUnit=SEC,  minorGridStep=5,  majorGridUnit=MIN,  majorGridStep=1,  labelUnit=SEC,  labelStep=5,  format="%H:%M:%S", maxInterval=10*MIN),
@@ -99,18 +103,18 @@ xAxisConfigs = (
   dict(seconds=10,    minorGridUnit=MIN,  minorGridStep=5,  majorGridUnit=MIN,  majorGridStep=20, labelUnit=MIN,  labelStep=20, format="%H:%M", maxInterval=1*DAY),
   dict(seconds=30,    minorGridUnit=MIN,  minorGridStep=10, majorGridUnit=HOUR, majorGridStep=1,  labelUnit=HOUR, labelStep=1,  format="%H:%M", maxInterval=2*DAY),
   dict(seconds=60,    minorGridUnit=MIN,  minorGridStep=30, majorGridUnit=HOUR, majorGridStep=2,  labelUnit=HOUR, labelStep=2,  format="%H:%M", maxInterval=2*DAY),
-  dict(seconds=100,   minorGridUnit=HOUR, minorGridStep=2,  majorGridUnit=HOUR, majorGridStep=4,  labelUnit=HOUR, labelStep=4,  format=percent_l_supported and "%a %l%p" or "%a %I%p", maxInterval=6*DAY),
-  dict(seconds=255,   minorGridUnit=HOUR, minorGridStep=6,  majorGridUnit=HOUR, majorGridStep=12, labelUnit=HOUR, labelStep=12, format=percent_l_supported and "%m/%d %l%p" or "%m/%d %I%p", maxInterval=10*DAY),
-  dict(seconds=600,   minorGridUnit=HOUR, minorGridStep=6,  majorGridUnit=DAY,  majorGridStep=1,  labelUnit=DAY,  labelStep=1,  format="%m/%d", maxInterval=14*DAY),
-  dict(seconds=1000,   minorGridUnit=HOUR, minorGridStep=12, majorGridUnit=DAY,  majorGridStep=1,  labelUnit=DAY,  labelStep=1,  format="%m/%d", maxInterval=365*DAY),
-  dict(seconds=2000,  minorGridUnit=DAY,  minorGridStep=1,  majorGridUnit=DAY,  majorGridStep=2,  labelUnit=DAY,  labelStep=2,  format="%m/%d", maxInterval=365*DAY),
-  dict(seconds=4000,  minorGridUnit=DAY,  minorGridStep=2,  majorGridUnit=DAY,  majorGridStep=4,  labelUnit=DAY,  labelStep=4,  format="%m/%d", maxInterval=365*DAY),
-  dict(seconds=8000,  minorGridUnit=DAY,  minorGridStep=3.5,majorGridUnit=DAY,  majorGridStep=7,  labelUnit=DAY,  labelStep=7,  format="%m/%d", maxInterval=365*DAY),
-  dict(seconds=16000, minorGridUnit=DAY,  minorGridStep=7,  majorGridUnit=DAY,  majorGridStep=14, labelUnit=DAY,  labelStep=14, format="%m/%d", maxInterval=365*DAY),
-  dict(seconds=32000, minorGridUnit=DAY,  minorGridStep=15, majorGridUnit=DAY,  majorGridStep=30, labelUnit=DAY,  labelStep=30, format="%m/%d", maxInterval=365*DAY),
-  dict(seconds=64000, minorGridUnit=DAY,  minorGridStep=30, majorGridUnit=DAY,  majorGridStep=60, labelUnit=DAY,  labelStep=60, format="%m/%d %Y"),
-  dict(seconds=100000,minorGridUnit=DAY,  minorGridStep=60, majorGridUnit=DAY,  majorGridStep=120,labelUnit=DAY,  labelStep=120, format="%m/%d %Y"),
-  dict(seconds=120000,minorGridUnit=DAY,  minorGridStep=120,majorGridUnit=DAY,  majorGridStep=240,labelUnit=DAY,  labelStep=240, format="%m/%d %Y"),
+  dict(seconds=100,   minorGridUnit=HOUR, minorGridStep=2,  majorGridUnit=HOUR, majorGridStep=4,  labelUnit=HOUR, labelStep=4,  format="%a %H:%M", maxInterval=6*DAY),
+  dict(seconds=255,   minorGridUnit=HOUR, minorGridStep=6,  majorGridUnit=HOUR, majorGridStep=12, labelUnit=HOUR, labelStep=12, format=DATE_FORMAT + " %H:%M", maxInterval=10*DAY),
+  dict(seconds=600,   minorGridUnit=HOUR, minorGridStep=6,  majorGridUnit=DAY,  majorGridStep=1,  labelUnit=DAY,  labelStep=1,  format=DATE_FORMAT, maxInterval=14*DAY),
+  dict(seconds=1000,   minorGridUnit=HOUR, minorGridStep=12, majorGridUnit=DAY,  majorGridStep=1,  labelUnit=DAY,  labelStep=1,  format=DATE_FORMAT, maxInterval=365*DAY),
+  dict(seconds=2000,  minorGridUnit=DAY,  minorGridStep=1,  majorGridUnit=DAY,  majorGridStep=2,  labelUnit=DAY,  labelStep=2,  format=DATE_FORMAT, maxInterval=365*DAY),
+  dict(seconds=4000,  minorGridUnit=DAY,  minorGridStep=2,  majorGridUnit=DAY,  majorGridStep=4,  labelUnit=DAY,  labelStep=4,  format=DATE_FORMAT, maxInterval=365*DAY),
+  dict(seconds=8000,  minorGridUnit=DAY,  minorGridStep=3.5,majorGridUnit=DAY,  majorGridStep=7,  labelUnit=DAY,  labelStep=7,  format=DATE_FORMAT, maxInterval=365*DAY),
+  dict(seconds=16000, minorGridUnit=DAY,  minorGridStep=7,  majorGridUnit=DAY,  majorGridStep=14, labelUnit=DAY,  labelStep=14, format=DATE_FORMAT, maxInterval=365*DAY),
+  dict(seconds=32000, minorGridUnit=DAY,  minorGridStep=15, majorGridUnit=DAY,  majorGridStep=30, labelUnit=DAY,  labelStep=30, format=DATE_FORMAT, maxInterval=365*DAY),
+  dict(seconds=64000, minorGridUnit=DAY,  minorGridStep=30, majorGridUnit=DAY,  majorGridStep=60, labelUnit=DAY,  labelStep=60, format=DATE_FORMAT + " %Y"),
+  dict(seconds=100000,minorGridUnit=DAY,  minorGridStep=60, majorGridUnit=DAY,  majorGridStep=120,labelUnit=DAY,  labelStep=120, format=DATE_FORMAT + " %Y"),
+  dict(seconds=120000,minorGridUnit=DAY,  minorGridStep=120,majorGridUnit=DAY,  majorGridStep=240,labelUnit=DAY,  labelStep=240, format=DATE_FORMAT + " %Y"),
 )
 
 UnitSystems = {
@@ -165,6 +169,12 @@ class _AxisTics:
 
   @staticmethod
   def checkFinite(value, name='value'):
+    """Check that value is a finite number.
+
+    If it is, return it. If not, raise GraphError describing the
+    problem, using name in the error message.
+    """
+
     if math.isnan(value):
       raise GraphError('Encountered NaN %s' % (name,))
     elif math.isinf(value):
@@ -173,12 +183,31 @@ class _AxisTics:
 
   @staticmethod
   def chooseDelta(x):
+    """Choose a reasonable axis range given that one limit is x.
+
+    Given that end of the axis range (i.e., minValue or maxValue) is
+    x, choose a reasonable distance to the other limit.
+    """
+
     if abs(x) < 1.0e-9:
       return 1.0
     else:
       return 0.1 * abs(x)
 
   def reconcileLimits(self):
+    """If self.minValue is not less than self.maxValue, fix the problem.
+
+    If self.minValue is not less than self.maxValue, adjust
+    self.minValue and/or self.maxValue (depending on which was not
+    specified explicitly by the user) to make self.minValue <
+    self.maxValue. If the user specified both limits explicitly, then
+    raise GraphError.
+    """
+
+    if self.minValue < self.maxValue:
+      # The limits are already OK.
+      return
+
     minFixed = (self.minValueSource in ['min'])
     maxFixed = (self.maxValueSource in ['max', 'limit'])
 
@@ -196,6 +225,26 @@ class _AxisTics:
       self.maxValue = average + delta
 
   def applySettings(self, axisMin=None, axisMax=None, axisLimit=None):
+    """Apply the specified settings to this axis.
+
+    Set self.minValue, self.minValueSource, self.maxValue,
+    self.maxValueSource, and self.axisLimit reasonably based on the
+    parameters provided.
+
+    Arguments:
+
+    axisMin -- a finite number, or None to choose a round minimum
+        limit that includes all of the data.
+
+    axisMax -- a finite number, 'max' to use the maximum value
+        contained in the data, or None to choose a round maximum limit
+        that includes all of the data.
+
+    axisLimit -- a finite number to use as an upper limit on maxValue,
+        or None to impose no upper limit.
+
+    """
+
     if axisMin is not None and not math.isnan(axisMin):
       self.minValueSource = 'min'
       self.minValue = self.checkFinite(axisMin, 'axis min')
@@ -206,24 +255,32 @@ class _AxisTics:
       self.maxValueSource = 'max'
       self.maxValue = self.checkFinite(axisMax, 'axis max')
 
-    if axisLimit is not None and not math.isnan(axisLimit):
-      if axisLimit < self.maxValue:
-        self.maxValue = self.checkFinite(axisLimit, 'axis limit')
-        self.maxValueSource = 'limit'
-        # The limit has already been imposed, so there is no need to
-        # remember it:
-        self.axisLimit = None
-      elif not math.isinf(axisLimit):
-        # We still need to remember axisLimit to avoid rounding top to
-        # a value larger than axisLimit:
-        self.axisLimit = axisLimit
-    else:
+    if axisLimit is None or math.isnan(axisLimit):
       self.axisLimit = None
+    elif axisLimit < self.maxValue:
+      self.maxValue = self.checkFinite(axisLimit, 'axis limit')
+      self.maxValueSource = 'limit'
+      # The limit has already been imposed, so there is no need to
+      # remember it:
+      self.axisLimit = None
+    elif math.isinf(axisLimit):
+      # It must be positive infinity, which is the same as no limit:
+      self.axisLimit = None
+    else:
+      # We still need to remember axisLimit to avoid rounding top to
+      # a value larger than axisLimit:
+      self.axisLimit = axisLimit
 
-    if not (self.minValue < self.maxValue):
-      self.reconcileLimits()
+    self.reconcileLimits()
 
   def makeLabel(self, value):
+    """Create a label for the specified value.
+
+    Create a label string containing the value and its units (if any),
+    based on the values of self.step, self.span, and self.unitSystem.
+
+    """
+
     value, prefix = format_units(value, self.step, system=self.unitSystem)
     span, spanPrefix = format_units(self.span, self.step, system=self.unitSystem)
     if prefix:
@@ -246,11 +303,17 @@ class _AxisTics:
 
 
 class _LinearAxisTics(_AxisTics):
+  """Axis ticmarks with uniform spacing."""
+
   def __init__(self, minValue, maxValue, unitSystem=None):
     _AxisTics.__init__(self, minValue, maxValue, unitSystem=unitSystem)
     self.step = None
+    self.span = None
+    self.binary = None
 
   def setStep(self, step):
+    """Set the size of steps between ticmarks."""
+
     self.step = self.checkFinite(float(step), 'axis step')
 
   def generateSteps(self, minStep):
@@ -279,7 +342,7 @@ class _LinearAxisTics(_AxisTics):
     """Compute the slop that would result from step and divisor.
 
     Return the slop, or None if this combination can't cover the full
-    range.
+    range. See chooseStep() for the definition of "slop".
 
     """
 
@@ -419,6 +482,8 @@ class _LogAxisTics(_AxisTics):
     if base <= 1.0:
       raise GraphError('Logarithmic base must be greater than one')
     self.base = self.checkFinite(base, 'log base')
+    self.step = None
+    self.span = None
 
   def setStep(self, step):
     # step is ignored for Logarithmic tics:
@@ -538,6 +603,9 @@ class Graph:
       r,g,b = ( int(s[0:2],base=16), int(s[2:4],base=16), int(s[4:6],base=16) )
       if len(s) == 8 and not forceAlpha:
         alpha = float( int(s[6:8],base=16) ) / 255.0
+    elif isinstance(value, int) and len(str(value)) == 6:
+      s = str(value)
+      r,g,b = ( int(s[0:2],base=16), int(s[2:4],base=16), int(s[4:6],base=16) )
     else:
       raise ValueError("Must specify an RGB 3-tuple, an html color string, or a known color alias!")
     r,g,b = [float(c) / 255.0 for c in (r,g,b)]
@@ -860,7 +928,7 @@ class LineGraph(Graph):
                   'yStepRight', 'rightWidth', 'rightColor', 'rightDashed', \
                   'leftWidth', 'leftColor', 'leftDashed', 'xFormat', 'minorY', \
                   'hideYAxis', 'uniqueLegend', 'vtitleRight', 'yDivisors', \
-                  'connectedLimit', 'hideXAxis')
+                  'connectedLimit', 'hideXAxis', 'hideNullFromLegend')
   validLineModes = ('staircase','slope','connected')
   validAreaModes = ('none','first','all','stacked')
   validPieModes = ('maximum', 'minimum', 'average')
@@ -891,7 +959,7 @@ class LineGraph(Graph):
     if len(self.dataRight) > 0:
       self.secondYAxis = True
 
-    #API compatibility hacks
+    # API compatibility hacks
     if params.get('graphOnly',False):
       params['hideLegend'] = True
       params['hideGrid'] = True
@@ -919,7 +987,7 @@ class LineGraph(Graph):
     if 'yUnitSystem' not in params:
       params['yUnitSystem'] = 'si'
     else:
-      params['yUnitSystem'] = str(params['yUnitSystem']).lower()
+      params['yUnitSystem'] = unicode(params['yUnitSystem']).lower()
       if params['yUnitSystem'] not in UnitSystems.keys():
         params['yUnitSystem'] = 'si'
 
@@ -933,7 +1001,8 @@ class LineGraph(Graph):
     # instead of adding to the minimum
     if self.params.get('yAxisSide') == 'right':
       self.margin = self.width
-    #Now to setup our LineGraph specific options
+
+    # Now to setup our LineGraph specific options
     self.lineWidth = float( params.get('lineWidth', 1.2) )
     self.lineMode = params.get('lineMode','slope').lower()
     self.connectedLimit = params.get("connectedLimit", INFINITY)
@@ -977,19 +1046,24 @@ class LineGraph(Graph):
     self.setColor( self.foregroundColor )
 
     if params.get('title'):
-      self.drawTitle( str(params['title']) )
+      self.drawTitle( unicode(params['title']) )
     if params.get('vtitle'):
-      self.drawVTitle( str(params['vtitle']) )
+      self.drawVTitle( unicode(params['vtitle']) )
     if self.secondYAxis and params.get('vtitleRight'):
-      self.drawVTitle( str(params['vtitleRight']), rightAlign=True )
+      self.drawVTitle( unicode(params['vtitleRight']), rightAlign=True )
     self.setFont()
 
     if not params.get('hideLegend', len(self.data) > settings.LEGEND_MAX_ITEMS):
-      elements = [ (series.name,series.color,series.options.get('secondYAxis')) for series in self.data if series.name ]
-      self.drawLegend(elements, params.get('uniqueLegend', False))
+      elements = []
+      for series in self.data:
+        if series.name:
+          if not (params.get('hideNullFromLegend', False) and all(v is None for v in list(series))):
+            elements.append((unquote_plus(series.name),series.color,series.options.get('secondYAxis')))
+      if len(elements) > 0:
+        self.drawLegend(elements, params.get('uniqueLegend', False))
 
-    #Setup axes, labels, and grid
-    #First we adjust the drawing area size to fit X-axis labels
+    # Setup axes, labels, and grid
+    # First we adjust the drawing area size to fit X-axis labels
     if not self.params.get('hideAxes',False) and not self.params.get('hideXAxis', False):
       self.area['ymax'] -= self.getExtents()['maxAscent'] * 2
 
@@ -1000,15 +1074,15 @@ class LineGraph(Graph):
       self.endTime = max([(series.end - series.step) for series in self.data])
     self.timeRange = self.endTime - self.startTime
 
-    #Now we consolidate our data points to fit in the currently estimated drawing area
+    # Now we consolidate our data points to fit in the currently estimated drawing area
     self.consolidateDataPoints()
 
     self.encodeHeader('axes')
 
-    #Now its time to fully configure the Y-axis and determine the space required for Y-axis labels
-    #Since we'll probably have to squeeze the drawing area to fit the Y labels, we may need to
-    #reconsolidate our data points, which in turn means re-scaling the Y axis, this process will
-    #repeat until we have accurate Y labels and enough space to fit our data points
+    # Now its time to fully configure the Y-axis and determine the space required for Y-axis labels
+    # Since we'll probably have to squeeze the drawing area to fit the Y labels, we may need to
+    # reconsolidate our data points, which in turn means re-scaling the Y axis, this process will
+    # repeat until we have accurate Y labels and enough space to fit our data points
     currentXMin = self.area['xmin']
     currentXMax = self.area['xmax']
 
@@ -1025,7 +1099,7 @@ class LineGraph(Graph):
       else:
         self.setupYAxis()
 
-    #Now that our Y-axis is finalized, let's determine our X labels (this won't affect the drawing area)
+    # Now that our Y-axis is finalized, let's determine our X labels (this won't affect the drawing area)
     self.setupXAxis()
 
     if not self.params.get('hideAxes',False):
@@ -1034,7 +1108,7 @@ class LineGraph(Graph):
         self.encodeHeader('grid')
         self.drawGridLines()
 
-    #Finally, draw the graph lines
+    # Finally, draw the graph lines
     self.encodeHeader('lines')
     self.drawLines()
 
@@ -1522,7 +1596,7 @@ class LineGraph(Graph):
 
 
   def drawLabels(self):
-    #Draw the Y-labels
+    # Draw the Y-labels
     if not self.params.get('hideYAxis'):
       if not self.secondYAxis:
         for value,label in zip(self.yLabelValues,self.yLabels):
@@ -1541,7 +1615,7 @@ class LineGraph(Graph):
             self.drawText(label, x, y, align='right', valign='middle')
           else:
             self.drawText(label, x, y, align='left', valign='middle') #Inverted for right side Y Axis
-      else: #Draws a right side and a Left side axis
+      else: # Draws a right side and a Left side axis
         for valueL,labelL in zip(self.yLabelValuesL,self.yLabelsL):
           xL = self.area['xmin'] - (self.yLabelWidthL * 0.02)
           yL = self.getYCoord(valueL, "left")
@@ -1564,7 +1638,7 @@ class LineGraph(Graph):
     if not self.params.get('hideXAxis'):
       (dt, x_label_delta) = find_x_times(self.start_dt, self.xConf['labelUnit'], self.xConf['labelStep'])
 
-      #Draw the X-labels
+      # Draw the X-labels
       xFormat = self.params.get('xFormat', self.xConf['format'])
       while dt < self.end_dt:
         label = dt.strftime(xFormat)
@@ -1577,7 +1651,7 @@ class LineGraph(Graph):
     # Not sure how to handle this for 2 y-axes
     # Just using the left side info for the grid.
 
-    #Horizontal grid lines
+    # Horizontal grid lines
     leftSide = self.area['xmin']
     rightSide = self.area['xmax']
     labels = []
@@ -1642,7 +1716,7 @@ class LineGraph(Graph):
           self.ctx.line_to(rightSide, y)
           self.ctx.stroke()
 
-    #Vertical grid lines
+    # Vertical grid lines
     top = self.area['ymin']
     bottom = self.area['ymax']
 
@@ -1676,7 +1750,7 @@ class LineGraph(Graph):
 
       dt += x_major_delta
 
-    #Draw side borders for our graph area
+    # Draw side borders for our graph area
     self.ctx.set_line_width(0.5)
     self.ctx.move_to(self.area['xmax'], bottom)
     self.ctx.line_to(self.area['xmax'], top)
@@ -1688,12 +1762,21 @@ class LineGraph(Graph):
 
 class PieGraph(Graph):
   customizable = Graph.customizable + \
-                 ('title','valueLabels','valueLabelsMin','hideLegend','pieLabels')
+                 ('title','valueLabels','valueLabelsMin','hideLegend','pieLabels','areaAlpha','valueLabelsColor')
   validValueLabels = ('none','number','percent')
 
   def drawGraph(self,**params):
     self.pieLabels = params.get('pieLabels', 'horizontal')
     self.total = sum( [t[1] for t in self.data] )
+
+    if self.params.get('areaAlpha'):
+      try:
+        self.alpha = float(self.params['areaAlpha'])
+      except ValueError:
+        self.alpha = 1.0
+        pass
+    else:
+      self.alpha = 1.0
 
     self.slices = []
     for name,value in self.data:
@@ -1702,6 +1785,7 @@ class PieGraph(Graph):
         'value' : value,
         'percent' : value / self.total,
         'color' : self.colors.next(),
+        'alpha' : self.alpha,
       })
 
     titleSize = self.defaultFontParams['size'] + math.floor( math.log(self.defaultFontParams['size']) )
@@ -1716,6 +1800,11 @@ class PieGraph(Graph):
       self.drawLegend(elements)
 
     self.drawSlices()
+
+    if params.get('valueLabelsColor'):
+      self.valueLabelsColor = params.get('valueLabelsColor')
+    else:
+      self.valueLabelsColor = 'black'
 
     self.valueLabelsMin = float( params.get('valueLabelsMin',5) )
     self.valueLabels = params.get('valueLabels','percent')
@@ -1732,7 +1821,7 @@ class PieGraph(Graph):
     self.y0 = y0 = self.area['ymin'] + halfY
     self.radius = radius = min(halfX,halfY) * 0.95
     for slice in self.slices:
-      self.setColor( slice['color'] )
+      self.setColor( slice['color'], slice['alpha'] )
       self.ctx.move_to(x0,y0)
       phi = theta + (2 * math.pi) * slice['percent']
       self.ctx.arc( x0, y0, radius, theta, phi )
@@ -1744,7 +1833,7 @@ class PieGraph(Graph):
 
   def drawLabels(self):
     self.setFont()
-    self.setColor( 'black' )
+    self.setColor( self.valueLabelsColor )
     for slice in self.slices:
       if self.valueLabels == 'percent':
         if (slice['percent'] * 100.0) < self.valueLabelsMin: continue
@@ -1754,7 +1843,7 @@ class PieGraph(Graph):
         if slice['value'] < 10 and slice['value'] != int(slice['value']):
           label = "%.2f" % slice['value']
         else:
-          label = str(int(slice['value']))
+          label = unicode(int(slice['value']))
       extents = self.getExtents(label)
       theta = slice['midAngle']
       x = self.x0 + (self.radius / 2.0 * math.cos(theta))
@@ -1774,13 +1863,13 @@ GraphTypes = {
 }
 
 
-#Convience functions
+# Convenience functions
 def toSeconds(t):
   return (t.days * 86400) + t.seconds
 
 
 def safeArgs(args):
-  """Iterate over valid, finite values an in iterable.
+  """Iterate over valid, finite values in an iterable.
 
   Skip any items that are None, NaN, or infinite.
   """
@@ -1852,7 +1941,7 @@ def sort_stacked(series_list):
   return stacked + not_stacked
 
 
-def format_units(v, step=None, system="si"):
+def format_units(v, step=None, system='si', units=None):
   """Format the given value in standardized units.
 
   ``system`` is either 'binary' or 'si'
@@ -1861,6 +1950,9 @@ def format_units(v, step=None, system="si"):
     http://en.wikipedia.org/wiki/SI_prefix
     http://en.wikipedia.org/wiki/Binary_prefix
   """
+
+  if v is None:
+    return v, ''
 
   if step is None:
     condition = lambda size: abs(v) >= size
@@ -1872,14 +1964,26 @@ def format_units(v, step=None, system="si"):
       v2 = v / size
       if (v2 - math.floor(v2)) < 0.00000000001 and v > 1:
         v2 = math.floor(v2)
+      if units:
+        prefix = "%s%s" % (prefix, units)
       return v2, prefix
 
   if (v - math.floor(v)) < 0.00000000001 and v > 1 :
     v = math.floor(v)
-  return v, ""
+  if units:
+    prefix = units
+  else:
+    prefix = ''
+  return v, prefix
 
 
 def find_x_times(start_dt, unit, step):
+  if not isinstance(start_dt, datetime):
+    raise ValueError("Invalid start_dt: %s" % start_dt)
+  if not isinstance(step, int) or not step > 0:
+    if not isinstance(step, float) or unit != DAY or not step > 0.0:
+      raise ValueError("Invalid step value: %s" % step)
+
   if unit == SEC:
     dt = start_dt.replace(second=start_dt.second - (start_dt.second % step))
     x_delta = timedelta(seconds=step)
